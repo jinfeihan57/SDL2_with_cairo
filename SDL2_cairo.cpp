@@ -9,12 +9,6 @@
 
 #include "SDL.h"
 
-#include <vector>
-#include <iostream>
-#include "include/core/SkSurface.h"
-#include "include/core/SkCanvas.h"
-#include "include/core/SkPath.h"
-
 constexpr int gWINDOW_WEIGHT = 1000;
 constexpr int gWINDOW_HEIGHT = 800;
 
@@ -69,39 +63,17 @@ void DrawRectWithCairo(cairo_t *cr, int x, int y)
     cairo_restore(cr);
 }
 
-std::vector<char> raster_direct(int width, int height,
-                                void (*draw)(SkCanvas*)) {
-    SkImageInfo info = SkImageInfo::MakeN32Premul(width, height);
-    size_t rowBytes = info.minRowBytes();
-    size_t size = info.computeByteSize(rowBytes);
-    std::vector<char> pixelMemory(size);  // allocate memory
-    sk_sp<SkSurface> surface =
-            SkSurface::MakeRasterDirect(
-                    info, &pixelMemory[0], rowBytes);
-    SkCanvas* canvas = surface->getCanvas();
-    draw(canvas);
-    return pixelMemory;
-}
-
-void example(SkCanvas* canvas) {
-    const SkScalar scale = 256.0f;
-    const SkScalar R = 0.45f * scale;
-    const SkScalar TAU = 6.2831853f;
-    SkPath path;
-    for (int i = 0; i < 5; ++i) {
-        SkScalar theta = 2 * i * TAU / 5;
-        if (i == 0) {
-            path.moveTo(R * cos(theta), R * sin(theta));
-        } else {
-            path.lineTo(R * cos(theta), R * sin(theta));
-        }
-    }
-    path.close();
-    SkPaint p;
-    p.setAntiAlias(true);
-    canvas->clear(SK_ColorWHITE);
-    canvas->translate(0.5f * scale, 0.5f * scale);
-    canvas->drawPath(path, p);
+void DrawFillRectWithCairo(cairo_t *cr, int x, int y) 
+{
+    // 绘制
+    cairo_save(cr);
+    cairo_set_source_rgba(cr, 1, 1, 1, 0.7);
+    cairo_set_line_width(cr, 4);
+    cairo_rectangle(cr, x, y, 100, 50);
+    cairo_stroke_preserve (cr);
+    cairo_set_source_rgba(cr, 0.5, 0.2, 0.3, 0.7);
+    cairo_fill(cr);
+    cairo_restore(cr);
 }
 
 int main(int argc, char *argv[])
@@ -148,8 +120,6 @@ int main(int argc, char *argv[])
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Call cairo_image_surface_get_data error.");
     }
 
-    std::vector<char> skiaPixels = raster_direct(gWINDOW_WEIGHT, gWINDOW_HEIGHT, example);
-
     SDL_Texture *texture;
     int partTextureW = gWINDOW_WEIGHT;
     int partTextureH = gWINDOW_HEIGHT;
@@ -185,7 +155,7 @@ int main(int argc, char *argv[])
         // draw
         ClearCairo(cr);
         DrawLineWithCairo(cr, clickX, clickY);
-        DrawRectWithCairo(cr, clickX, clickY);
+        DrawFillRectWithCairo(cr, clickX, clickY);
         unsigned char *cairoData = cairo_image_surface_get_data(surface);
         if (cairoData == nullptr) {
             SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Call cairo_image_surface_get_data error.");
@@ -198,7 +168,6 @@ int main(int argc, char *argv[])
         SDL_LockTexture(texture, nullptr, reinterpret_cast<void **>(&pixels), &pitch);
         // 绘制像素
         memcpy(pixels, cairoData, pitch * rect.h);
-        // memcpy(pixels, skiaPixels.data(), pitch * rect.h);
         // 将内存中的 pixels 更新到显存
         SDL_UnlockTexture(texture);
 
