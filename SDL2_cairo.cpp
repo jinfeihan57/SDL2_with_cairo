@@ -11,11 +11,16 @@
 
 constexpr int gWINDOW_WEIGHT = 1000;
 constexpr int gWINDOW_HEIGHT = 800;
+constexpr float gfWINDOW_WEIGHT = 1000.0;
+constexpr float gfWINDOW_HEIGHT = 800.0;
 
 constexpr int gFPS = 60;
 constexpr Uint32 gFPS_TIME = 1000 / gFPS;
 
 constexpr int unitScale = 2*50;
+
+// 渲染计数，作为不精确的定时器
+static int renderCount = 0;
 
 void ClearCairo(cairo_t *cr)
 {
@@ -74,6 +79,31 @@ void DrawFillRectWithCairo(cairo_t *cr, int x, int y)
     cairo_set_source_rgba(cr, 0.5, 0.2, 0.3, 0.7);
     cairo_fill(cr);
     cairo_restore(cr);
+}
+
+void DisplayImageWithCairo(cairo_t *cr, int x, int y)
+{
+    cairo_surface_t *image = cairo_image_surface_create_from_png("./dice.png");
+    if (!image) {
+        std::cout << "cairo_image_surface_create_from_png Failed!" << std::endl;
+        cairo_status_t stat = cairo_status(cr);
+        std::cout << "stat: " << cairo_status_to_string(stat) << std::endl;
+        return ;
+    }
+    int imgW = cairo_image_surface_get_width(image);
+    int imgH = cairo_image_surface_get_height(image);
+    cairo_save(cr);
+    cairo_set_line_width(cr, 4);
+    cairo_translate (cr, imgW/2, imgH/2);
+    cairo_rotate (cr, (static_cast<int>(renderCount/2) % 360) * M_PI/180);
+    cairo_translate (cr, -imgW/2, -imgH/2);
+    cairo_set_source_rgba(cr, 1, 1, 1, 0.7);
+    cairo_rectangle(cr, 0, 0, imgW, imgH);
+    cairo_stroke(cr);
+    cairo_set_source_surface(cr, image, 0, 0);
+    cairo_paint(cr);
+    cairo_restore(cr);
+    cairo_surface_destroy(image);
 }
 
 int main(int argc, char *argv[])
@@ -154,8 +184,9 @@ int main(int argc, char *argv[])
 
         // draw
         ClearCairo(cr);
-        DrawLineWithCairo(cr, clickX, clickY);
-        DrawFillRectWithCairo(cr, clickX, clickY);
+        // DrawLineWithCairo(cr, clickX, clickY);
+        // DrawFillRectWithCairo(cr, clickX, clickY);
+        DisplayImageWithCairo(cr, clickX, clickY);
         unsigned char *cairoData = cairo_image_surface_get_data(surface);
         if (cairoData == nullptr) {
             SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Call cairo_image_surface_get_data error.");
@@ -186,6 +217,8 @@ int main(int argc, char *argv[])
         int fps = std::chrono::seconds(1) / (end - start);
         // 修改应用标题
         SDL_SetWindowTitle(screen, (std::string("x,y : ") + std::to_string(clickX) + std::string(",") + std::to_string(clickY)).c_str());
+        // 记录循环次数
+        renderCount++;
     }
     cairo_destroy(cr);
     cairo_surface_destroy(surface);
